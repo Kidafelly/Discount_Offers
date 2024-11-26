@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security settings
 SECRET_KEY = 'django-insecure-xl1*1u*=96$nzqg62*uus5970zsgpciwp5s2l)$x!wiml^19ws'
 DEBUG = True
-ALLOWED_HOSTS = ['*']  # Replace '*' with your domain or server IP in production.
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -54,8 +54,12 @@ WSGI_APPLICATION = 'Discount_Offers.wsgi.application'
 # Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE'  : 'django.db.backends.mysql',
+        'NAME'    : 'discount_offers',
+        'USER'    : 'root',
+        'PASSWORD': 'wanjala',
+        'HOST'    : 'localhost',
+        'PORT'    : '3306',
     }
 }
 
@@ -86,7 +90,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Location for collected static files
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles','static')  # Static files will be collected here
+STATIC_ROOT = os.path.join(BASE_DIR, 'Discount_Offers','static')  # Static files will be collected here
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'  # Enable WhiteNoise compression
 
 # Default primary key field type

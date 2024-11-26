@@ -1,29 +1,15 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from openpyxl.workbook.workbook import Workbook
+from django.http import HttpResponse
 from .forms import DiscountOfferForm
 from .models import DiscountOffer
-from django.http import FileResponse, HttpResponseNotFound
-import os
-from .utils import export_db_to_excel
 
 from django.http import FileResponse, HttpResponseNotFound
 import os
 from .utils import export_db_to_excel
+from django.http import JsonResponse
 
-def download_db_as_excel(request):
-    """Export the SQLite database to an Excel file and serve it for download."""
-    db_path = r"C:\Users\HomePC\Desktop\Discount\Discount_Offers\db.sqlite3"  # Path to your SQLite database
-    excel_path = r"C:\Users\HomePC\Desktop\Discount\Discount_Offers\database_export.xlsx"  # Temporary Excel file
-
-    # Ensure the database exists
-    if not os.path.exists(db_path):
-        return HttpResponseNotFound('<h1>Database not found</h1>')
-
-    # Export the database to Excel
-    export_db_to_excel(db_path, excel_path)
-
-    # Serve the Excel file as a download
-    return FileResponse(open(excel_path, 'rb'), as_attachment=True, filename='database_export.xlsx')
 
 def discount_form_view(request):
     if request.method == 'POST':
@@ -52,6 +38,50 @@ def discount_form_view(request):
 
     return render(request, 'discount_form.html', {'form': form})
 
+
 def success_view(request):
     """Renders the success page."""
     return render(request, 'success.html')
+
+
+def export_to_excel(request):
+    # Fetch all DiscountOffer data
+    data = DiscountOffer.objects.all()
+
+    # Create a new Excel workbook
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Discount Offers"
+
+    # Add headers
+    headers = ["Account Number", "Discount Offer", "Ticket Number", "Region", "Date Processed"]
+    sheet.append(headers)
+
+    # Add data rows
+    for offer in data:
+        sheet.append([
+            offer.account_number,
+            offer.discount_offer,
+            offer.ticket_number,
+            offer.region,
+            offer.date_processed.strftime("%Y-%m-%d")
+        ])
+
+    # Create HTTP response
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response['Content-Disposition'] = 'attachment; filename="discount_offers.xlsx"'
+    workbook.save(response)
+    return response
+
+
+def discount_offers_api(request):
+    offers = DiscountOffer.objects.all().values(
+        'account_number', 'discount_offer', 'ticket_number', 'region', 'date_processed'
+    )
+    return JsonResponse({'data': list(offers)})
+
+
+def discount_offers_table(request):
+    return render(request, 'data_view_and_export.html')
