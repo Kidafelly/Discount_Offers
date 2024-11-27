@@ -57,7 +57,7 @@ DATABASES = {
         'ENGINE'  : 'django.db.backends.mysql',
         'NAME'    : 'discount_offers',
         'USER'    : 'root',
-        'PASSWORD': 'wanjala',
+        'PASSWORD': 's3cr3t3p@ssw0rd',
         'HOST'    : 'localhost',
         'PORT'    : '3306',
     }

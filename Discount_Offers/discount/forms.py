@@ -8,6 +8,10 @@ class DiscountOfferForm(forms.Form):
         choices=[('50%', '50% Discount'), ('25%', '25% Discount'), ('10%', '10% Discount')],
         label="Discount Offer"
     )
+    status = forms.ChoiceField(
+        choices=[('blocked_offer', 'Blocked Offer'), ('inactive_offer', 'Inactive Offer')],
+        label="Status"
+    )
     ticket_number = forms.CharField(max_length=10, label="Ticket Number")
     region = forms.ChoiceField(
         choices=[('Nairobi', 'Nairobi'), ('Garissa', 'Garissa'), ('Wajir', 'Wajir'), ('Embu', 'Embu')],
@@ -27,30 +31,57 @@ class DiscountOfferForm(forms.Form):
             raise forms.ValidationError("Account number must be followed by integers after 'AFRIQ'.")
         return account_number
 
+    def clean(self):
+        """Ensure account number is not used for both blocked_offer and inactive_offer."""
+        cleaned_data = super().clean()
+        account_number = cleaned_data.get('account_number')
+        status = cleaned_data.get('status')
+
+        if account_number and status:
+            # Check if the account number already exists with a different status
+            conflicting_offer = DiscountOffer.objects.filter(
+                account_number=account_number
+            ).exclude(status=status).exists()
+
+            if conflicting_offer:
+                raise forms.ValidationError(
+                    "This account number cannot be used for both Blocked Offer and Inactive Offer."
+                )
+
+        return cleaned_data
+
     def clean_discount_offer(self):
-        """Validate that discounts are applied sequentially."""
+        """Validate discount rules based on the status and sequential requirements."""
         discount_offer = self.cleaned_data['discount_offer']
+        status = self.cleaned_data.get('status')
         account_number = self.cleaned_data.get('account_number')
 
-        # Fetch applied discounts for this account
-        applied_discounts = DiscountOffer.objects.filter(account_number=account_number).values_list(
-            'discount_offer', flat=True
-        )
+        # Rule for blocked_offer
+        if status == 'blocked_offer':
+            if discount_offer != '50%':
+                raise forms.ValidationError("Blocked Offer is only eligible for a 50% discount.")
+            
+            # Check if 50% discount has already been applied for this account
+            already_applied = DiscountOffer.objects.filter(
+                account_number=account_number, discount_offer='50%', status='blocked_offer'
+            ).exists()
+            if already_applied:
+                raise forms.ValidationError("50% discount can only be applied once for a Blocked Offer.")
 
-        # Define the required sequence
-        required_sequence = ['50%', '25%', '10%']
-
-        # Check if more than 3 discounts have already been applied
-        if len(applied_discounts) >= 3:
-            raise forms.ValidationError("This account has already applied for all available discounts.")
-
-        # Check if the current discount is the next in sequence
-        next_discount = required_sequence[len(applied_discounts)]
-        if discount_offer != next_discount:
-            raise forms.ValidationError(
-                f"Discounts must be applied in this order: {', '.join(required_sequence)}. "
-                f"You must apply for the {next_discount} discount first."
+        # Rule for inactive_offer
+        if status == 'inactive_offer':
+            applied_discounts = DiscountOffer.objects.filter(account_number=account_number).values_list(
+                'discount_offer', flat=True
             )
+            required_sequence = ['50%', '25%', '10%']
+            if len(applied_discounts) >= len(required_sequence):
+                raise forms.ValidationError("This account has already applied for all available discounts.")
+            next_discount = required_sequence[len(applied_discounts)]
+            if discount_offer != next_discount:
+                raise forms.ValidationError(
+                    f"Discounts must be applied in this order: {', '.join(required_sequence)}. "
+                    f"You must apply for the {next_discount} discount first."
+                )
 
         return discount_offer
 
